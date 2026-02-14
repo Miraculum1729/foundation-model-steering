@@ -1,4 +1,8 @@
-# HIV-1 PR DPLM 验证报告
+# HIV-1 PR DPLM Validation Report
+
+This report summarizes the generation evaluation of Foundation Model (DPLM) on HIV-1 protease. Motivation: DPLM is trained on massive data but still has limited generation capability in domain-specific settings (e.g., HIV PR resistance-related patterns). This experiment evaluates and visualizes from multiple angles: Perplexity, AAR, diversity, mutation distribution, resistance enrichment, and embedding space.
+
+---
 
 ## Perplexity
 

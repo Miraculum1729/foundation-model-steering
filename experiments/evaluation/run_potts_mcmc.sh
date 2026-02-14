@@ -1,21 +1,21 @@
 #!/bin/bash
-# Mi3-GPU Potts 模型 MCMC 采样
-# 采样 naive 与 exper 两种 Potts 模型，输出 seqs 供 embedding 可视化
+# Mi3-GPU Potts model MCMC sampling
+# Sample naive and exper Potts models, output seqs for embedding visualization
 
 set -e
 MI3_ROOT="/mnt/hbnas/home/pfp/hiv/Mi3-GPU"
 EXAMPLES="$MI3_ROOT/examples"
 ALPHA="ACDEFGHIKLMNPQRSTVWY-"
 
-# 检查 Mi3
+# Check Mi3
 if ! command -v Mi3.py &>/dev/null; then
-    echo "请先安装 Mi3-GPU: cd $MI3_ROOT && pip install -e ."
+    echo "Install Mi3-GPU first: cd $MI3_ROOT && pip install -e ."
     exit 1
 fi
 
 cd "$MI3_ROOT"
 
-echo "===== Naive Potts MCMC 采样 ====="
+echo "===== Naive Potts MCMC sampling ====="
 Mi3.py gen \
   --init_model "$EXAMPLES/pr.naive.splitseq/pr_naive_inference/run_63" \
   --alpha "$ALPHA" \
@@ -26,7 +26,7 @@ Mi3.py gen \
   --outdir "$EXAMPLES/pr.naive.splitseq/pr_naive_gen"
 
 echo ""
-echo "===== Exper Potts MCMC 采样 ====="
+echo "===== Exper Potts MCMC sampling ====="
 Mi3.py gen \
   --init_model "$EXAMPLES/pr.exper.splitseq/pr_exper_inference/run_63" \
   --alpha "$ALPHA" \
@@ -37,5 +37,5 @@ Mi3.py gen \
   --outdir "$EXAMPLES/pr.exper.splitseq/pr_exper_gen"
 
 echo ""
-echo "MCMC 完成。运行: python experiments/evaluation/potts_mcmc_to_fasta.py"
-echo "然后: python experiments/evaluation/embedding_analysis.py"
+echo "MCMC done. Run: python experiments/evaluation/potts_mcmc_to_fasta.py"
+echo "Then: python experiments/evaluation/embedding_analysis.py"

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Phase 3.3: 突变分布比较
-单点突变频率、PSSM、关键位点 KL 散度。93aa = 99aa[5:98]。
+Phase 3.3: Mutation distribution comparison.
+Single-site mutation frequency, PSSM, key-site KL divergence. 93aa = 99aa[5:98].
 """
 
 import numpy as np
@@ -18,7 +18,7 @@ DPLM_LEN = 99
 PR_93_START, PR_93_END = 5, 98
 AA = "ACDEFGHIKLMNPQRSTVWY"
 AA_TO_IDX = {a: i for i, a in enumerate(AA)}
-KEY_SITES_1BASED = [30, 46, 63, 71, 82, 84, 90]  # PR 关键位点
+KEY_SITES_1BASED = [30, 46, 63, 71, 82, 84, 90]  # PR key sites
 
 
 def to_93aa_if_99(seq):
@@ -48,7 +48,7 @@ def load_sequences(fasta_path):
 
 
 def pssm_from_sequences(sequences, L=93):
-    """PSSM: 每位点 20 字母频率，形状 (L, 20)。"""
+    """PSSM: per-site 20-letter frequency, shape (L, 20)."""
     cnt = np.zeros((L, 20))
     for s in sequences:
         s93 = to_93aa_if_99(s) if len(s) == DPLM_LEN else s
@@ -63,7 +63,7 @@ def pssm_from_sequences(sequences, L=93):
 
 
 def kl_divergence_per_position(p_real, p_gen, eps=1e-10):
-    """每位点 KL(real || gen)，返回 (L,) 或标量。"""
+    """Per-site KL(real || gen), returns (L,) or scalar."""
     if not HAS_SCIPY:
         return None
     p_r = np.clip(p_real, eps, 1)
@@ -78,7 +78,7 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
-    print("Phase 3.3: 突变分布比较")
+    print("Phase 3.3: Mutation distribution comparison")
     print("=" * 60)
 
     _, naive_seqs = load_sequences(data_dir / "pr_naive_val.fasta")
@@ -97,7 +97,7 @@ def main():
     pssm_naive_potts = pssm_from_sequences(gn, L)
     pssm_exper_potts = pssm_from_sequences(ge, L)
 
-    # PSSM Frobenius 相似度（1 - norm_diff / max_norm）
+    # PSSM Frobenius similarity (1 - norm_diff / max_norm)
     def frob_sim(a, b):
         d = np.linalg.norm(a - b, 'fro')
         m = max(np.linalg.norm(a, 'fro'), np.linalg.norm(b, 'fro'), 1e-10)
@@ -116,11 +116,11 @@ def main():
         f.write("group_a,group_b,pssm_similarity\n")
         for a, b, s in rows:
             f.write(f"{a},{b},{s:.6f}\n")
-    print("\nPSSM 相似度 (Frobenius):")
+    print("\nPSSM similarity (Frobenius):")
     for a, b, s in rows:
         print(f"  {a} vs {b}: {s:.4f}")
 
-    # 每位点 KL(exper || gen) 和 KL(naive || gen)
+    # Per-site KL(exper || gen) and KL(naive || gen)
     if HAS_SCIPY:
         kl_exper_uncond = kl_divergence_per_position(pssm_exper, pssm_uncond)
         kl_exper_naive_potts = kl_divergence_per_position(pssm_exper, pssm_naive_potts)
@@ -130,13 +130,13 @@ def main():
             for i in range(L):
                 pos1 = i + 1
                 f.write(f"{pos1},{kl_exper_uncond[i]:.6f},{kl_exper_naive_potts[i]:.6f},{kl_exper_exper_potts[i]:.6f}\n")
-        print("\n关键位点 KL(exper || gen):")
+        print("\nKey-site KL(exper || gen):")
         for pos1 in KEY_SITES_1BASED:
             i = pos1 - 1
             if i < L:
-                print(f"  位点{pos1}: uncond={kl_exper_uncond[i]:.4f}, naive_potts={kl_exper_naive_potts[i]:.4f}, exper_potts={kl_exper_exper_potts[i]:.4f}")
+                print(f"  Site{pos1}: uncond={kl_exper_uncond[i]:.4f}, naive_potts={kl_exper_naive_potts[i]:.4f}, exper_potts={kl_exper_exper_potts[i]:.4f}")
 
-        # 可视化：关键位点 KL 比较
+        # Viz: key-site KL comparison
         try:
             import matplotlib
             matplotlib.use("Agg")
@@ -157,16 +157,16 @@ def main():
             plt.tight_layout()
             plt.savefig(output_dir / "key_sites_comparison.png", dpi=120)
             plt.close()
-            print("  图表: key_sites_comparison.png")
+            print("  Plot: key_sites_comparison.png")
         except Exception as err:
-            print("  可视化跳过:", err)
+            print("  Visualization skipped:", err)
     else:
-        print("\n(未安装 scipy，跳过 KL 散度)")
+        print("\n(scipy not installed, skipping KL divergence)")
 
-    print(f"\n保存: {output_dir}")
+    print(f"\nSaved: {output_dir}")
     print("  pssm_similarity.csv, kl_divergence_by_pos.csv")
     print("=" * 60)
-    print("Phase 3.3 完成！")
+    print("Phase 3.3 complete!")
     print("=" * 60)
 
 

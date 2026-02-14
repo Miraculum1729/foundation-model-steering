@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-耐药突变Enrichment分析脚本
-按药物、按 Major/Minor 分组统计，基于 Stanford HIV PI 耐药突变列表。
-与 Phase2 一致：生成序列为 99 aa，93aa = 99aa[5:98]；突变位点为 1-based PR(93aa)。
-参考：MUTATIONS IN THE PROTEASE GENE ASSOCIATED WITH RESISTANCE TO PROTEASE INHIBITORS(PIs).md
+Resistance mutation Enrichment analysis.
+Statistics by drug and Major/Minor tier, based on Stanford HIV PI resistance mutation list.
+Phase 2 convention: generated seqs 99 aa, 93aa = 99aa[5:98]; mutation positions 1-based PR(93aa).
+Ref: MUTATIONS IN THE PROTEASE GENE ASSOCIATED WITH RESISTANCE TO PROTEASE INHIBITORS(PIs).md
 """
 
 import re
@@ -11,13 +11,13 @@ import csv
 from pathlib import Path
 from collections import defaultdict
 
-# Phase2 约定：DPLM 生成 99 aa，93aa = 99aa[5:98]
+# Phase 2: DPLM generates 99 aa, 93aa = 99aa[5:98]
 DPLM_LEN = 99
 PR_93_START, PR_93_END = 5, 98
 
 
 def parse_mutation(s):
-    """解析突变字符串，如 V32I -> (32, 'V', 'I', 'V32I')"""
+    """Parse mutation string, e.g. V32I -> (32, 'V', 'I', 'V32I')"""
     m = re.match(r"([A-Z])(\d+)([A-Z])", s.strip())
     if not m:
         return None
@@ -25,7 +25,7 @@ def parse_mutation(s):
     return (pos, wt, mut, s.strip())
 
 
-# PI 耐药突变列表：按药物、Major/Minor 分组（来自 MUTATIONS IN THE PROTEASE GENE...md）
+# PI resistance mutations: by drug, Major/Minor (from MUTATIONS IN THE PROTEASE GENE...md)
 PI_MUTATIONS_BY_DRUG = {
     "Atazanavir": {
         "Major": ("V32I", "I50L", "I54V", "V82A", "I84V", "N88S"),
@@ -74,7 +74,7 @@ TIERS = ["Major", "Minor"]
 
 
 def build_mutation_list():
-    """从 PI_MUTATIONS_BY_DRUG 构建 (pos, wt, mut, name, drug, tier) 列表。"""
+    """Build (pos, wt, mut, name, drug, tier) list from PI_MUTATIONS_BY_DRUG."""
     result = []
     for drug in DRUGS:
         for tier in TIERS:
@@ -87,7 +87,7 @@ def build_mutation_list():
 
 
 def get_mutations_by_group():
-    """返回 {(drug, tier): [(pos, wt, mut, name), ...]}"""
+    """Return {(drug, tier): [(pos, wt, mut, name), ...]}"""
     all_muts = build_mutation_list()
     by_group = defaultdict(list)
     for pos, wt, mut, name, drug, tier in all_muts:
@@ -96,7 +96,7 @@ def get_mutations_by_group():
 
 
 def get_unique_mutations():
-    """返回去重后的突变列表 [(pos, wt, mut, name)]，用于逐突变频率计算。"""
+    """Return deduplicated mutation list [(pos, wt, mut, name)] for per-mutation frequency."""
     seen = {}
     for pos, wt, mut, name, drug, tier in build_mutation_list():
         key = name
@@ -106,14 +106,14 @@ def get_unique_mutations():
 
 
 def to_93aa_if_99(seq):
-    """若为 99 aa 生成序列，取 93aa 部分以便按 PR 1-based 位点检查突变。"""
+    """If 99 aa generated seq, take 93aa portion for PR 1-based mutation check."""
     if len(seq) == DPLM_LEN:
         return seq[PR_93_START:PR_93_END]
     return seq
 
 
 def load_sequences(fasta_path):
-    """加载FASTA序列"""
+    """Load FASTA sequences"""
     sequences = []
     names = []
     with open(fasta_path, 'r') as f:
@@ -136,14 +136,14 @@ def load_sequences(fasta_path):
 
 
 def check_mutation(seq, position, wildtype, mutant):
-    """检查序列是否包含特定突变。"""
+    """Check if sequence contains a specific mutation."""
     if len(seq) < position:
         return False
     return seq[position - 1] == mutant
 
 
 def calc_mutation_freq(sequences, mutation_list):
-    """计算一组序列中各突变的频率。mutation_list: [(pos, wt, mut, name), ...]"""
+    """Compute mutation frequencies across sequences. mutation_list: [(pos, wt, mut, name), ...]"""
     freq = {mut[3]: 0.0 for mut in mutation_list}
     for seq in sequences:
         for pos, wt, mut, name in mutation_list:
@@ -156,7 +156,7 @@ def calc_mutation_freq(sequences, mutation_list):
 
 
 def calc_group_freq(sequences, group_mutations):
-    """计算「至少含有该组中任一突变」的序列比例。
+    """Compute fraction of sequences with at least one mutation in the group.
     group_mutations: [(pos, wt, mut, name), ...]
     """
     if not sequences:
@@ -177,15 +177,15 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 70)
-    print("Phase 3.4: 耐药突变 Enrichment 分析（按药物、Major/Minor 分组）")
+    print("Phase 3.4: Resistance mutation Enrichment (by drug, Major/Minor)")
     print("=" * 70)
 
     by_group = get_mutations_by_group()
     unique_muts = get_unique_mutations()
-    print(f"\n突变总数（去重）: {len(unique_muts)}")
-    print(f"药物-层级组数: {len(by_group)}")
+    print(f"\nTotal unique mutations: {len(unique_muts)}")
+    print(f"Drug-tier groups: {len(by_group)}")
 
-    # 加载序列
+    # Load sequences
     _, naive_seqs = load_sequences(data_dir / "pr_naive_val.fasta")
     _, exper_seqs = load_sequences(data_dir / "pr_exper_val.fasta")
     _, gen_uncond_seqs = load_sequences(generated_dir / "pr_uncond.fasta")
@@ -204,25 +204,25 @@ def main():
         "exper_potts_gen": gen_exper_potts_seqs,
     }
 
-    # 1. 逐突变频率
-    print("\n[1/3] 计算逐突变频率...")
+    # 1. Per-mutation frequency
+    print("\n[1/3] Computing per-mutation frequency...")
     freq_by_group = {}
     for gname, seqs in seq_groups.items():
         freq_by_group[gname] = calc_mutation_freq(seqs, unique_muts)
 
-    # 2. 按 (drug, tier) 组统计：至少含一个该组突变的序列比例
-    print("\n[2/3] 按药物-Major/Minor 分组统计（含任一突变的比例）...")
+    # 2. By (drug, tier): fraction of seqs with at least one mutation in group
+    print("\n[2/3] By drug-Major/Minor group stats (fraction with any mutation)...")
     group_freq = defaultdict(dict)
     for (drug, tier), muts in sorted(by_group.items()):
         for gname, seqs in seq_groups.items():
             group_freq[(drug, tier)][gname] = calc_group_freq(seqs, muts)
 
-    # 3. 计算 Enrichment（生成组相对 exper_real）
-    print("\n[3/3] 计算 Enrichment...")
+    # 3. Compute Enrichment (generated groups relative to exper_real)
+    print("\n[3/3] Computing Enrichment...")
 
     exper_freq = freq_by_group["exper_real"]
 
-    # 保存：逐突变详细表（含 drug/tier 信息，同一突变可能多行）
+    # Save: per-mutation table (with drug/tier; same mutation may appear in multiple rows)
     mut_to_drug_tier = defaultdict(list)
     for pos, wt, mut, name, drug, tier in build_mutation_list():
         mut_to_drug_tier[name].append((drug, tier))
@@ -259,7 +259,7 @@ def main():
         w.writeheader()
         w.writerows(rows_per_mut)
 
-    # 保存：按 (drug, tier) 分组汇总
+    # Save: by (drug, tier) group summary
     def _enr(gen_frac, exp_frac):
         return (gen_frac / exp_frac) if exp_frac > 0 else 0.0
 
@@ -291,7 +291,7 @@ def main():
         w.writeheader()
         w.writerows(rows_by_group)
 
-    # 兼容旧版：保留 enrichment_table.csv（仅核心突变子集）
+    # Legacy: keep enrichment_table.csv (core mutation subset only)
     core_muts = ["D30N", "M46I", "M46L", "V82A", "I84V", "L90M", "L33F", "A71V", "A71T"]
     core_rows = [r for r in rows_per_mut if r["mutation"] in core_muts]
     with open(output_dir / "enrichment_table.csv", "w", newline="") as f:
@@ -304,13 +304,13 @@ def main():
         for r in core_rows:
             w.writerow({k: r.get(k, 0) for k in w.fieldnames})
 
-    # 控制台输出：按药物、Major/Minor 分组
+    # Console: by drug, Major/Minor
     print("\n" + "=" * 70)
-    print("按药物、Major/Minor 分组 — 含任一该组突变的序列比例及 Enrichment")
+    print("By drug, Major/Minor — fraction with any mutation & Enrichment")
     print("=" * 70)
 
     for drug in DRUGS:
-        print(f"\n【{drug}】")
+        print(f"\n[{drug}]")
         for tier in TIERS:
             rr = next((r for r in rows_by_group if r["drug"] == drug and r["tier"] == tier), None)
             if rr is None:
@@ -322,20 +322,20 @@ def main():
                   f"ExperP={rr['exper_potts_gen_frac']:.1%}({rr['exper_potts_enrichment']:.2f})")
 
     print("\n" + "-" * 70)
-    print("关键突变（逐突变 Enrichment，仅列 Exper 基准>0 的）:")
-    print(f"{'突变':<8} {'Exper':>8} {'Uncond':>10} {'NaiveP':>10} {'ExperP':>10}")
+    print("Key mutations (per-mutation Enrichment, Exper baseline>0 only):")
+    print(f"{'Mutation':<8} {'Exper':>8} {'Uncond':>10} {'NaiveP':>10} {'ExperP':>10}")
     print("-" * 50)
     for r in rows_per_mut:
         if r["exper_real_freq"] > 0 and r["mutation"] in core_muts:
             print(f"{r['mutation']:<8} {r['exper_real_freq']:>8.3f} {r['uncond_enrichment']:>10.2f} "
                   f"{r['naive_potts_enrichment']:>10.2f} {r['exper_potts_enrichment']:>10.2f}")
 
-    print("\n保存完成:")
-    print(f"  逐突变: {output_dir / 'enrichment_table_per_mutation.csv'}")
-    print(f"  按药物-层级: {output_dir / 'enrichment_by_drug_tier.csv'}")
-    print(f"  兼容旧版: {output_dir / 'enrichment_table.csv'}")
+    print("\nSaved:")
+    print(f"  Per-mutation: {output_dir / 'enrichment_table_per_mutation.csv'}")
+    print(f"  By drug-tier: {output_dir / 'enrichment_by_drug_tier.csv'}")
+    print(f"  Legacy: {output_dir / 'enrichment_table.csv'}")
     print("\n" + "=" * 70)
-    print("Phase 3.4 完成！")
+    print("Phase 3.4 complete!")
     print("=" * 70)
 
 

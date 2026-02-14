@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-HIV-1 PR 数据准备脚本
-加载Stanford PR数据和训练好的Potts模型，计算统计信息
+HIV-1 PR data preparation script.
+Load Stanford PR data and trained Potts models, compute statistics.
 """
 
 import os
@@ -10,13 +10,13 @@ from pathlib import Path
 
 
 def load_fasta_sequences(filepath):
-    """加载FASTA格式的序列文件（简单文本格式，每行一个序列）"""
+    """Load FASTA-format sequence file (plain text, one seq per line)"""
     sequences = []
     with open(filepath, 'r') as f:
         for line in f:
             line = line.strip()
             if line and not line.startswith('>'):
-                # 去除gap字符，保留标准氨基酸
+                # Remove gap chars, keep standard amino acids
                 seq = line.replace('-', '')
                 if len(seq) == 93:
                     sequences.append(seq)
@@ -25,12 +25,12 @@ def load_fasta_sequences(filepath):
 
 def load_potts_model(j_path):
     """
-    加载Potts模型
+    Load Potts model.
 
-    J矩阵形状 (4278, 441) 的解释：
-    - L = 93 (序列长度)
-    - q = 21 (21种状态：20氨基酸 + gap)
-    - 4278 = (93 × 92) / 2，存储上三角的位点对
+    J matrix shape (4278, 441):
+    - L = 93 (sequence length)
+    - q = 21 (21 states: 20 amino acids + gap)
+    - 4278 = (93 × 92) / 2, upper-triangular site pairs
     - 441 = 21 × 21
     """
     J_full = np.load(j_path)
@@ -38,27 +38,27 @@ def load_potts_model(j_path):
     L = 93
     q = 21
 
-    print(f"加载Potts模型: {j_path}")
-    print(f"J矩阵形状: {J_full.shape}")
+    print(f"Loading Potts model: {j_path}")
+    print(f"J matrix shape: {J_full.shape}")
 
-    # 重建完整的J_{ij}(a,b)张量 [L, L, q, q]
-    # 假设J_full的第k行对应位点对(i,j)，k为上三角索引
+    # Rebuild full J_{ij}(a,b) tensor [L, L, q, q]
+    # J_full row k corresponds to site pair (i,j), k = upper-triangle index
     J_coupling = np.zeros((L, L, q, q))
 
     k = 0
     for i in range(L):
         for j in range(i+1, L):
-            # J_full[k] 是(441,)，reshape成(21,21)
+            # J_full[k] is (441,), reshape to (21,21)
             J_coupling[i, j, :, :] = J_full[k].reshape(q, q)
-            J_coupling[j, i, :, :] = J_full[k].reshape(q, q)  # 对称
+            J_coupling[j, i, :, :] = J_full[k].reshape(q, q)  # symmetric
             k += 1
 
-    # 外场h可能需要从其他位置提取或设为零
-    # 先设为零，后续根据实际数据调整
+    # External field h may need extraction elsewhere or set to zero
+    # Set to zero for now, adjust with real data later
     h = np.zeros((L, q))
 
-    print(f"重建耦合矩阵: {J_coupling.shape}")
-    print(f"外场矩阵: {h.shape}")
+    print(f"Rebuilt coupling matrix: {J_coupling.shape}")
+    print(f"External field matrix: {h.shape}")
 
     return {
         'J': J_coupling,
@@ -69,11 +69,11 @@ def load_potts_model(j_path):
 
 
 def compute_pssm(sequences, num_states=21):
-    """计算位置特异性评分矩阵（PSSM）"""
+    """Compute position-specific scoring matrix (PSSM)"""
     L = len(sequences[0])
     pssm = np.zeros((L, num_states))
 
-    # 氨基酸到索引的映射
+    # Amino acid to index mapping
     aa_to_idx = {
         'A': 0, 'R': 1, 'N': 2, 'D': 3, 'C': 4,
         'Q': 5, 'E': 6, 'G': 7, 'H': 8, 'I': 9,
@@ -87,14 +87,14 @@ def compute_pssm(sequences, num_states=21):
                 idx = aa_to_idx[aa]
                 pssm[pos, idx] += 1
 
-    # 归一化
+    # Normalize
     pssm = pssm / len(sequences)
 
     return pssm
 
 
 def compute_mutation_frequency(sequences):
-    """计算每个位点的突变频率"""
+    """Compute mutation frequency per site"""
     L = len(sequences[0])
     freq = {}
 
@@ -109,15 +109,15 @@ def compute_mutation_frequency(sequences):
 
 
 def compute_shannon_entropy(pssm):
-    """计算每个位点的Shannon熵"""
-    eps = 1e-10  # 避免log(0)
+    """Compute Shannon entropy per site"""
+    eps = 1e-10  # Avoid log(0)
     entropy = -np.sum(pssm * np.log2(pssm + eps), axis=1)
     return entropy
 
 
 def extract_hxb2_reference(sequences):
-    """从序列中提取最接近consensus的序列作为HXB2参考"""
-    # 计算consensus
+    """Extract sequence closest to consensus as HXB2 reference"""
+    # Compute consensus
     consensus_seq = []
     L = len(sequences[0])
 
@@ -127,13 +127,13 @@ def extract_hxb2_reference(sequences):
             aa = seq[pos]
             aa_counts[aa] = aa_counts.get(aa, 0) + 1
 
-        # 选择最频繁的氨基酸
+        # Pick most frequent amino acid
         most_common_aa = max(aa_counts.items(), key=lambda x: x[1])[0]
         consensus_seq.append(most_common_aa)
 
     consensus = ''.join(consensus_seq)
 
-    # 找到最接近consensus的序列
+    # Find sequence closest to consensus
     min_dist = float('inf')
     hxb2_seq = None
 
@@ -147,37 +147,37 @@ def extract_hxb2_reference(sequences):
 
 
 def main():
-    # 路径配置
+    # Path config
     data_dir = Path("/mnt/hbnas/home/pfp/hiv/discrete_flow_models/data/hiv_msa")
     potts_dir = Path("/mnt/hbnas/home/pfp/hiv/Mi3-GPU/examples")
     output_dir = Path("/mnt/hbnas/home/pfp/hiv2026/dplm/hiv_data/processed")
     reference_dir = Path("/mnt/hbnas/home/pfp/hiv2026/dplm/hiv_data/reference")
 
-    # 创建输出目录
+    # Create output dirs
     output_dir.mkdir(parents=True, exist_ok=True)
     reference_dir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
-    print("Phase 1: HIV-1 PR 数据准备")
+    print("Phase 1: HIV-1 PR data preparation")
     print("=" * 60)
 
-    # 1. 加载val set数据（仅val用于评估）
-    print("\n[1/5] 加载val set数据...")
+    # 1. Load val set (val only for evaluation)
+    print("\n[1/5] Loading val set...")
 
     naive_val_seqs = load_fasta_sequences(data_dir / "pr_naive/val_sequences.txt")
     exper_val_seqs = load_fasta_sequences(data_dir / "pr_exper/val_sequences.txt")
 
-    print(f"  Naive val: {len(naive_val_seqs)} 条序列")
-    print(f"  Exper val: {len(exper_val_seqs)} 条序列")
+    print(f"  Naive val: {len(naive_val_seqs)} sequences")
+    print(f"  Exper val: {len(exper_val_seqs)} sequences")
 
-    # 验证序列长度
+    # Verify sequence length
     if naive_val_seqs:
-        print(f"  Naive序列长度: {len(naive_val_seqs[0])} aa")
+        print(f"  Naive seq length: {len(naive_val_seqs[0])} aa")
     if exper_val_seqs:
-        print(f"  Exper序列长度: {len(exper_val_seqs[0])} aa")
+        print(f"  Exper seq length: {len(exper_val_seqs[0])} aa")
 
-    # 2. 加载Potts模型
-    print("\n[2/5] 加载Potts模型...")
+    # 2. Load Potts models
+    print("\n[2/5] Loading Potts models...")
 
     potts_naive_path = potts_dir / "pr.naive.splitseq/pr_naive_inference/run_63/J.npy"
     potts_exper_path = potts_dir / "pr.exper.splitseq/pr_exper_inference/run_63/J.npy"
@@ -185,48 +185,48 @@ def main():
     potts_naive = load_potts_model(potts_naive_path)
     potts_exper = load_potts_model(potts_exper_path)
 
-    # 3. 计算统计信息（基于val set）
-    print("\n[3/5] 计算统计信息...")
+    # 3. Compute statistics (from val set)
+    print("\n[3/5] Computing statistics...")
 
-    # Naive统计
-    print("  计算Naive统计...")
+    # Naive stats
+    print("  Naive stats...")
     naive_pssm = compute_pssm(naive_val_seqs)
     naive_mutation_freq = compute_mutation_frequency(naive_val_seqs)
     naive_entropy = compute_shannon_entropy(naive_pssm)
 
-    print(f"    平均Shannon熵: {naive_entropy.mean():.3f}")
-    print(f"    最高熵位点: {np.argmax(naive_entropy)} (值: {naive_entropy.max():.3f})")
-    print(f"    最低熵位点: {np.argmin(naive_entropy)} (值: {naive_entropy.min():.3f})")
+    print(f"    Mean Shannon entropy: {naive_entropy.mean():.3f}")
+    print(f"    Max entropy site: {np.argmax(naive_entropy)} (val: {naive_entropy.max():.3f})")
+    print(f"    Min entropy site: {np.argmin(naive_entropy)} (val: {naive_entropy.min():.3f})")
 
-    # Exper统计
-    print("  计算Exper统计...")
+    # Exper stats
+    print("  Exper stats...")
     exper_pssm = compute_pssm(exper_val_seqs)
     exper_mutation_freq = compute_mutation_frequency(exper_val_seqs)
     exper_entropy = compute_shannon_entropy(exper_pssm)
 
-    print(f"    平均Shannon熵: {exper_entropy.mean():.3f}")
-    print(f"    最高熵位点: {np.argmax(exper_entropy)} (值: {exper_entropy.max():.3f})")
-    print(f"    最低熵位点: {np.argmin(exper_entropy)} (值: {exper_entropy.min():.3f})")
+    print(f"    Mean Shannon entropy: {exper_entropy.mean():.3f}")
+    print(f"    Max entropy site: {np.argmax(exper_entropy)} (val: {exper_entropy.max():.3f})")
+    print(f"    Min entropy site: {np.argmin(exper_entropy)} (val: {exper_entropy.min():.3f})")
 
-    # 4. 提取HXB2参考序列
-    print("\n[4/5] 提取HXB2参考序列...")
+    # 4. Extract HXB2 reference
+    print("\n[4/5] Extracting HXB2 reference...")
 
-    # 使用naive val set提取HXB2（naive更保守）
+    # Use naive val set for HXB2 (naive more conservative)
     hxb2_naive, naive_consensus = extract_hxb2_reference(naive_val_seqs)
     hxb2_exper, exper_consensus = extract_hxb2_reference(exper_val_seqs)
 
     print(f"  Naive consensus: {naive_consensus}")
-    print(f"  Naive HXB2代理: {hxb2_naive}")
+    print(f"  Naive HXB2 proxy: {hxb2_naive}")
     print(f"  Exper consensus: {exper_consensus}")
-    print(f"  Exper HXB2代理: {hxb2_exper}")
+    print(f"  Exper HXB2 proxy: {hxb2_exper}")
 
-    # 使用naive的HXB2作为主参考
+    # Use naive HXB2 as main reference
     hxb2_ref = hxb2_naive
 
-    # 5. 保存所有数据
-    print("\n[5/5] 保存数据...")
+    # 5. Save all data
+    print("\n[5/5] Saving data...")
 
-    # 保存val set序列
+    # Save val set sequences
     def save_fasta(seqs, filepath):
         with open(filepath, 'w') as f:
             for i, seq in enumerate(seqs):
@@ -235,11 +235,11 @@ def main():
     save_fasta(naive_val_seqs, output_dir / "pr_naive_val.fasta")
     save_fasta(exper_val_seqs, output_dir / "pr_exper_val.fasta")
 
-    # 保存HXB2参考
+    # Save HXB2 reference
     with open(reference_dir / "hxb2_pr.fasta", 'w') as f:
         f.write(f">HXB2_PR_Reference\n{hxb2_ref}\n")
 
-    # 保存Potts模型
+    # Save Potts models
     np.savez_compressed(
         output_dir / "potts_models.npz",
         potts_naive_J=potts_naive['J'],
@@ -250,7 +250,7 @@ def main():
         potts_q=potts_naive['q']
     )
 
-    # 保存统计信息
+    # Save statistics
     np.savez_compressed(
         output_dir / "pr_statistics.npz",
         naive_pssm=naive_pssm,
@@ -260,14 +260,14 @@ def main():
         hxb2_ref=np.array(list(hxb2_ref), dtype='U1')
     )
 
-    print(f"\n保存完成！")
+    print(f"\nSaved!")
     print(f"  Val sequences: {output_dir / 'pr_naive_val.fasta'}, {output_dir / 'pr_exper_val.fasta'}")
     print(f"  HXB2 reference: {reference_dir / 'hxb2_pr.fasta'}")
     print(f"  Potts models: {output_dir / 'potts_models.npz'}")
     print(f"  Statistics: {output_dir / 'pr_statistics.npz'}")
 
     print("\n" + "=" * 60)
-    print("Phase 1 完成！")
+    print("Phase 1 complete!")
     print("=" * 60)
 
 

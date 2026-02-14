@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Perplexity计算脚本
-计算真实序列和生成序列的perplexity
+Perplexity calculation script.
+Compute perplexity for real and generated sequences.
 """
 
 import os
@@ -19,21 +19,21 @@ os.environ["HF_HOME"] = os.environ.get("HF_HOME", "/mnt/hbnas/home/pfp/.cache/hu
 
 from byprot.models.dplm.dplm import DiffusionProteinLanguageModel
 
-# 与 Phase2 一致：DPLM 生成 99 aa，93aa = 99aa[5:98]
+# Phase 2: DPLM generates 99 aa, 93aa = 99aa[5:98]
 DPLM_LEN = 99
 PR_93_START = 5
 PR_93_END = 98   # 93aa = seq[5:98]
 
 
 def to_93aa_if_99(seq):
-    """若序列为 99 aa（Phase2 生成），则取 93aa 部分与真实数据对齐。"""
+    """If seq is 99 aa (Phase 2), take 93aa portion to align with real data."""
     if len(seq) == DPLM_LEN:
         return seq[PR_93_START:PR_93_END]
     return seq
 
 
 def load_sequences(fasta_path):
-    """加载FASTA序列"""
+    """Load FASTA sequences"""
     sequences = []
     names = []
     with open(fasta_path, 'r') as f:
@@ -56,10 +56,10 @@ def load_sequences(fasta_path):
 
 
 def calc_perplexity_batch(model, sequences, tokenizer, device, batch_size=32):
-    """批量计算perplexity"""
+    """Batch compute perplexity"""
     perplexities = []
 
-    for i in tqdm(range(0, len(sequences), batch_size), desc="计算Perplexity"):
+    for i in tqdm(range(0, len(sequences), batch_size), desc="Computing Perplexity"):
         batch_seqs = sequences[i:i+batch_size]
 
         batch = tokenizer.batch_encode_plus(
@@ -75,19 +75,19 @@ def calc_perplexity_batch(model, sequences, tokenizer, device, batch_size=32):
             logits = model(batch["input_ids"])
             pred_probs = torch.softmax(logits, dim=-1).cpu().numpy()
 
-        # 计算每个序列的perplexity
+        # Compute perplexity per sequence
         for j, seq in enumerate(batch_seqs):
             seq_len = len(seq)
             input_ids = tokenizer.encode(seq, add_special_tokens=True)
-            labels = input_ids[1:-1]  # 移除CLS和EOS
+            labels = input_ids[1:-1]  # Remove CLS and EOS
 
-            # 创建mask（排除特殊token）
+            # Create mask (exclude special tokens)
             mask = np.ones(seq_len)
             mask[0] = 0  # CLS
             mask[-1] = 0  # EOS
 
             if len(labels) > 0:
-                # 取对应序列长度位置的logits
+                # Get logits at positions corresponding to seq length
                 seq_logits = pred_probs[j, 1:seq_len+1, :]
                 seq_probs = seq_logits[np.arange(len(labels))[:, None], labels]
                 
@@ -101,7 +101,7 @@ def calc_perplexity_batch(model, sequences, tokenizer, device, batch_size=32):
 
 
 def main():
-    # 路径配置
+    # Path config
     data_dir = Path("/mnt/hbnas/home/pfp/hiv2026/dplm/hiv_data/processed")
     generated_dir = Path("/mnt/hbnas/home/pfp/hiv2026/dplm/exp_results/generated")
     output_dir = Path("/mnt/hbnas/home/pfp/hiv2026/dplm/exp_results/perplexity")
@@ -109,31 +109,31 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("="*60)
-    print("Phase 3.1: Perplexity计算")
+    print("Phase 3.1: Perplexity calculation")
     print("="*60)
 
-    # 加载DPLM模型
-    print("\n加载DPLM模型...")
+    # Load DPLM model
+    print("\nLoading DPLM model...")
     model = DiffusionProteinLanguageModel.from_pretrained("airkingbd/dplm_150m")
     tokenizer = model.tokenizer
     model = model.eval()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device)
 
-    # 1. 计算真实序列的perplexity
-    print("\n[1/5] 计算真实序列perplexity...")
+    # 1. Perplexity for real sequences
+    print("\n[1/5] Computing perplexity for real sequences...")
 
     naive_names, naive_seqs = load_sequences(data_dir / "pr_naive_val.fasta")
     exper_names, exper_seqs = load_sequences(data_dir / "pr_exper_val.fasta")
 
-    print(f"  Naive: {len(naive_seqs)} 条")
-    print(f"  Exper: {len(exper_seqs)} 条")
+    print(f"  Naive: {len(naive_seqs)} seqs")
+    print(f"  Exper: {len(exper_seqs)} seqs")
 
     naive_perplexities = calc_perplexity_batch(model, naive_seqs, tokenizer, device)
     exper_perplexities = calc_perplexity_batch(model, exper_seqs, tokenizer, device)
 
-    # 2. 计算生成序列的perplexity（Phase2 输出 99 aa，统一取 93aa 与真实数据可比）
-    print("\n[2/5] 计算生成序列perplexity...")
+    # 2. Perplexity for generated seqs (Phase 2 outputs 99 aa, take 93aa for comparison)
+    print("\n[2/5] Computing perplexity for generated sequences...")
 
     gen_uncond_names, gen_uncond_seqs = load_sequences(generated_dir / "pr_uncond.fasta")
     gen_naive_potts_names, gen_naive_potts_seqs = load_sequences(generated_dir / "pr_naive_potts.fasta")
@@ -143,16 +143,16 @@ def main():
     gen_naive_potts_seqs = [to_93aa_if_99(s) for s in gen_naive_potts_seqs]
     gen_exper_potts_seqs = [to_93aa_if_99(s) for s in gen_exper_potts_seqs]
 
-    print(f"  Uncond: {len(gen_uncond_seqs)} 条 (93aa)")
-    print(f"  Naive-Potts: {len(gen_naive_potts_seqs)} 条 (93aa)")
-    print(f"  Exper-Potts: {len(gen_exper_potts_seqs)} 条 (93aa)")
+    print(f"  Uncond: {len(gen_uncond_seqs)} seqs (93aa)")
+    print(f"  Naive-Potts: {len(gen_naive_potts_seqs)} seqs (93aa)")
+    print(f"  Exper-Potts: {len(gen_exper_potts_seqs)} seqs (93aa)")
 
     gen_uncond_perplexities = calc_perplexity_batch(model, gen_uncond_seqs, tokenizer, device)
     gen_naive_potts_perplexities = calc_perplexity_batch(model, gen_naive_potts_seqs, tokenizer, device)
     gen_exper_potts_perplexities = calc_perplexity_batch(model, gen_exper_potts_seqs, tokenizer, device)
 
-    # 3. 保存结果
-    print("\n[3/5] 保存结果...")
+    # 3. Save results
+    print("\n[3/5] Saving results...")
 
     import csv
 
@@ -173,8 +173,8 @@ def main():
         writer.writeheader()
         writer.writerows(results)
 
-    # 统计汇总
-    print("\n[4/5] 统计汇总...")
+    # Summary stats
+    print("\n[4/5] Summary stats...")
 
     summary = {
         'naive_real_mean': np.nanmean(naive_perplexities),
@@ -191,12 +191,12 @@ def main():
         for key, value in summary.items():
             f.write(f"{key}: {value:.3f}\n")
 
-    print(f"\n保存完成！")
-    print(f"  详细结果: {output_dir / 'perplexity_all.csv'}")
-    print(f"  统计汇总: {output_dir / 'perplexity_summary.txt'}")
+    print(f"\nSaved!")
+    print(f"  Detailed: {output_dir / 'perplexity_all.csv'}")
+    print(f"  Summary: {output_dir / 'perplexity_summary.txt'}")
 
     print("\n" + "="*60)
-    print("Phase 3.1 完成！")
+    print("Phase 3.1 complete!")
     print("="*60)
 
 
