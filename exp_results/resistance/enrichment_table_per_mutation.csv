@@ -1,0 +1,60 @@
+mutation,position,drugs_tiers,naive_real_freq,exper_real_freq,uncond_gen_freq,naive_potts_gen_freq,exper_potts_gen_freq,uncond_enrichment,naive_potts_enrichment,exper_potts_enrichment
+V32I,32,Atazanavir(Major); Darunavir(Minor); Lopinavir(Major) +2,0.0011296882060551287,0.0010504201680672268,0.0,0.0,0.002,0.0,0.0,1.9040000000000001
+I50L,50,Atazanavir(Major),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+I54V,54,Atazanavir(Major); Lopinavir(Major); Tipranavir(Minor) +3,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+V82A,82,Atazanavir(Major); Lopinavir(Major); Fosamprenavir(Minor) +3,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+I84V,84,Atazanavir(Major); Darunavir(Major); Lopinavir(Major) +5,0.00022593764121102577,0.022058823529411766,0.004,0.002,0.0,0.18133333333333332,0.09066666666666666,0.0
+N88S,88,Atazanavir(Major); Nelfinavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+L10F,10,Atazanavir(Minor); Lopinavir(Minor); Fosamprenavir(Minor) +1,0.0,0.0,0.0,0.312,0.008,0.0,0.0,0.0
+L10I,10,Atazanavir(Minor); Lopinavir(Minor); Fosamprenavir(Minor) +3,0.823994577496611,0.8046218487394958,0.91,0.552,0.81,1.1309660574412532,0.6860365535248042,1.0066840731070497
+L10V,10,Atazanavir(Minor); Lopinavir(Minor); Tipranavir(Minor) +3,0.17126073203795752,0.19432773109243698,0.084,0.094,0.106,0.4322594594594595,0.48371891891891894,0.5454702702702703
+K20T,20,Atazanavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+L24I,24,Atazanavir(Minor); Lopinavir(Minor); Indinavir(Minor) +1,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+L33F,33,Atazanavir(Minor); Darunavir(Minor); Lopinavir(Minor) +1,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+M46I,46,Atazanavir(Minor); Lopinavir(Minor); Fosamprenavir(Minor) +2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+M46L,46,Atazanavir(Minor); Lopinavir(Minor); Tipranavir(Minor) +3,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+G48V,48,Atazanavir(Minor); Saquinavir(Major),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+F53L,53,Atazanavir(Minor); Lopinavir(Minor),0.00022593764121102577,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+F53Y,53,Atazanavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+I54L,54,Atazanavir(Minor); Darunavir(Major); Lopinavir(Major) +2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+I54M,54,Atazanavir(Minor); Darunavir(Major); Lopinavir(Major) +2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+I54T,54,Atazanavir(Minor); Lopinavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+I54A,54,Atazanavir(Minor); Lopinavir(Minor); Tipranavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+I54S,54,Atazanavir(Minor); Lopinavir(Minor),0.0,0.0,0.002,0.0,0.002,0.0,0.0,0.0
+G73C,73,Atazanavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+G73S,73,Atazanavir(Minor); Lopinavir(Minor); Fosamprenavir(Minor) +2,0.0,0.0,0.004,0.002,0.002,0.0,0.0,0.0
+G73T,73,Atazanavir(Minor),0.0,0.0,0.0,0.002,0.006,0.0,0.0,0.0
+G73A,73,Atazanavir(Minor); Indinavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+V82T,82,Atazanavir(Minor); Lopinavir(Major); Tipranavir(Major) +4,0.0,0.0,0.0,0.002,0.002,0.0,0.0,0.0
+V82F,82,Atazanavir(Minor); Lopinavir(Major); Fosamprenavir(Minor) +3,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+V82L,82,Atazanavir(Minor); Tipranavir(Major),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+V82M,82,Atazanavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+V82S,82,Atazanavir(Minor); Lopinavir(Major); Fosamprenavir(Minor) +2,0.00022593764121102577,0.0021008403361344537,0.002,0.0,0.0,0.9520000000000001,0.0,0.0
+I85V,85,Atazanavir(Minor),0.00022593764121102577,0.0021008403361344537,0.0,0.0,0.0,0.0,0.0,0.0
+L90M,90,Atazanavir(Minor); Lopinavir(Minor); Fosamprenavir(Minor) +3,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+I47V,47,Darunavir(Major); Lopinavir(Major); Tipranavir(Major) +1,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+I50V,50,Darunavir(Major); Lopinavir(Major); Fosamprenavir(Major),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+L76V,76,Darunavir(Major); Lopinavir(Major); Fosamprenavir(Minor) +1,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+V11I,11,Darunavir(Minor),0.0,0.0,0.0,0.0,0.002,0.0,0.0,0.0
+T74P,74,Darunavir(Minor); Tipranavir(Major),0.9941256213285133,0.9821428571428571,0.992,0.986,0.988,1.0100363636363636,1.0039272727272728,1.0059636363636364
+L89V,89,Darunavir(Minor); Tipranavir(Minor),0.0,0.0,0.002,0.0,0.0,0.0,0.0,0.0
+I47A,47,Lopinavir(Major),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+L10R,10,Lopinavir(Minor); Fosamprenavir(Minor); Indinavir(Minor) +1,0.00022593764121102577,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+K20M,20,Lopinavir(Minor); Indinavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+K20R,20,Lopinavir(Minor); Indinavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+A71V,71,Lopinavir(Minor); Indinavir(Minor); Nelfinavir(Minor) +1,0.00022593764121102577,0.031512605042016806,0.0,0.0,0.0,0.0,0.0,0.0
+A71T,71,Lopinavir(Minor); Indinavir(Minor); Nelfinavir(Minor) +1,0.0,0.0,0.0,0.0,0.002,0.0,0.0,0.0
+Q58E,58,Tipranavir(Major),0.00045187528242205153,0.0021008403361344537,0.002,0.002,0.0,0.9520000000000001,0.9520000000000001,0.0
+N83D,83,Tipranavir(Major),0.0018075011296882061,0.0546218487394958,0.0,0.002,0.002,0.0,0.03661538461538462,0.03661538461538462
+M36I,36,Tipranavir(Minor); Indinavir(Minor); Nelfinavir(Minor),0.00045187528242205153,0.0,0.0,0.002,0.0,0.0,0.0,0.0
+M36L,36,Tipranavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+M36V,36,Tipranavir(Minor),0.0,0.0,0.0,0.036,0.026,0.0,0.0,0.0
+K43T,43,Tipranavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+H69K,69,Tipranavir(Minor),0.0013556258472661546,0.0021008403361344537,0.002,0.0,0.0,0.9520000000000001,0.0,0.0
+H69R,69,Tipranavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+L89I,89,Tipranavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+L89M,89,Tipranavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+V77I,77,Indinavir(Minor); Nelfinavir(Minor); Saquinavir(Minor),0.01694532309082693,0.014705882352941176,0.002,0.012,0.01,0.136,0.8160000000000001,0.68
+D30N,30,Nelfinavir(Major),0.0015815634884771804,0.005252100840336135,0.0,0.0,0.002,0.0,0.0,0.38079999999999997
+N88D,88,Nelfinavir(Minor),0.0,0.0,0.0,0.0,0.002,0.0,0.0,0.0
+I62V,62,Saquinavir(Minor),0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0

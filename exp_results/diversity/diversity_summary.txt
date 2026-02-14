@@ -1,0 +1,8 @@
+group	n	mean_hamming	mean_entropy	unique_ratio
+naive_real	4426	0.082313	0.167644	0.795978
+exper_real	952	0.140569	0.277341	1.000000
+uncond_gen	500	0.047561	0.106039	0.508000
+naive_potts_gen	500	0.113138	0.219076	0.992000
+exper_potts_gen	500	0.104871	0.213379	0.972000
+potts_mcmc_naive	200	0.078432	0.156013	0.975000
+potts_mcmc_exper	200	0.149222	0.286521	0.995000

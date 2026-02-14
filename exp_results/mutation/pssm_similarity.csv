@@ -1,0 +1,8 @@
+group_a,group_b,pssm_similarity
+naive_real,exper_real,0.867551
+naive_real,uncond_gen,0.890006
+naive_real,naive_potts_gen,0.714536
+naive_real,exper_potts_gen,0.753615
+exper_real,uncond_gen,0.819912
+exper_real,naive_potts_gen,0.675184
+exper_real,exper_potts_gen,0.716475
