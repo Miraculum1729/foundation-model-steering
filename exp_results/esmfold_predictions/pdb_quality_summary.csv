@@ -1,2 +1,4 @@
-note
-Phase 5.1 not run.
+group,n,mean_plddt,std_plddt,mean_ptm,std_ptm
+exper_potts,50,83.91,0.78,0.8359,0.0071
+naive_potts,50,84.02,0.47,0.8370,0.0033
+uncond,50,84.22,0.44,0.8381,0.0033

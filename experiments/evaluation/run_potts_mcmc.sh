@@ -1,6 +1,6 @@
 #!/bin/bash
 # Mi3-GPU Potts model MCMC sampling
-# Sample naive and exper Potts models, output seqs for embedding visualization
+# Sample naive and exper Potts models; output seqs for embedding visualization
 
 set -e
 MI3_ROOT="/mnt/hbnas/home/pfp/hiv/Mi3-GPU"
@@ -9,7 +9,7 @@ ALPHA="ACDEFGHIKLMNPQRSTVWY-"
 
 # Check Mi3
 if ! command -v Mi3.py &>/dev/null; then
-    echo "Install Mi3-GPU first: cd $MI3_ROOT && pip install -e ."
+    echo "Please install Mi3-GPU first: cd $MI3_ROOT && pip install -e ."
     exit 1
 fi
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Uncond vs Real embedding visualization.
-PCA/t-SNE for uncond_gen, naive_real, exper_real only.
-uncond_gen: 1000 seqs; naive/exper_real: max 500 each to balance viz.
+Uncond vs Real 嵌入可视化
+仅对 uncond_gen、naive_real、exper_real 做 PCA/t-SNE。
+uncond_gen 使用 1000 条，naive/exper_real 各最多 500 条以平衡可视化。
 """
 
 import os
@@ -55,17 +55,17 @@ def main():
     output_dir = Path("/mnt/hbnas/home/pfp/hiv2026/dplm/exp_results/embeddings")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Viz counts: uncond 1000, real 500 each
+    # 可视化数量：uncond 1000，real 各 500
     max_uncond = 1000
     max_real = 500
     batch_size = 32
 
     print("=" * 60)
-    print("Uncond vs Real embedding visualization")
+    print("Uncond vs Real 嵌入可视化")
     print("=" * 60)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print("\nLoading DPLM...")
+    print("\n加载 DPLM...")
     model = DiffusionProteinLanguageModel.from_pretrained("airkingbd/dplm_150m")
     model = model.eval().to(device)
     tokenizer = model.tokenizer
@@ -150,11 +150,11 @@ def main():
         plt.savefig(output_dir / "pca_uncond_vs_real.png", dpi=120)
         plt.close()
 
-        print(f"\nSaved: {output_dir / 'tsne_uncond_vs_real.png'}, {output_dir / 'pca_uncond_vs_real.png'}")
+        print(f"\n已保存: {output_dir / 'tsne_uncond_vs_real.png'}, {output_dir / 'pca_uncond_vs_real.png'}")
     except Exception as err:
-        print(f"\nVisualization skipped: {err}")
+        print(f"\n可视化跳过: {err}")
 
-    print(f"\nSaved: {output_dir / 'embeddings_uncond_vs_real.npz'}")
+    print(f"\n保存: {output_dir / 'embeddings_uncond_vs_real.npz'}")
     print("=" * 60)
 
 

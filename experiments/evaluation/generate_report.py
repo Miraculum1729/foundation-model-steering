@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Phase 6: Summary report and visualization Dashboard. Aggregate metrics and generate summary.html with charts."""
+"""Phase 6: Consolidated report and visualization dashboard. Aggregate metrics and generate summary.html with figures."""
 from pathlib import Path
 
 def main():
     root = Path("/mnt/hbnas/home/pfp/hiv2026/dplm/exp_results")
     out_dir = root / "dashboard"
     out_dir.mkdir(parents=True, exist_ok=True)
-    # Relative path from dashboard/ to subdirs
+    # Relative paths from dashboard/ to subdirs
     rel = lambda subpath: f"../{subpath}"
 
     parts = ["# HIV-1 PR DPLM Validation Report\n"]
@@ -31,7 +31,7 @@ def main():
         "<!DOCTYPE html><html><head><meta charset='utf-8'><title>HIV-1 PR DPLM Dashboard</title>",
         "<style>body{font-family:sans-serif;margin:1rem;} h1{color:#333;} .chart{margin:1.5rem 0;} .chart img{max-width:100%;}</style></head><body>",
         "<h1>HIV-1 PR DPLM Potts-Guided Generation and Validation — Visualization Dashboard</h1>",
-        "<p><a href='final_report.md'>Summary Report (Markdown)</a></p>",
+        "<p><a href='final_report.md'>Consolidated report (Markdown)</a></p>",
     ]
     for title, subpath in charts:
         p = root / subpath.replace("/", "/")

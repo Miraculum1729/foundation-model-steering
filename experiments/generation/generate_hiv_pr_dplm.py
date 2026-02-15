@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 HIV-1 PR DPLM Potts-guided generation script.
 Implements HXB2 template clamping + Potts energy guidance.
@@ -23,47 +24,33 @@ from byprot.models.dplm.dplm import DiffusionProteinLanguageModel
 
 def compute_potts_energy(seq, potts_model):
     """
-    Compute Potts energy of a sequence.
+    Compute Potts energy of a sequence. Mi3-GPU is gauge-free; h is absorbed into J, so use coupling J only:
+    E = -sum_{i<j} J_ij(x_i, x_j).
 
     Args:
         seq: Amino acid sequence (93 aa)
-        potts_model: {'J': ..., 'h': ..., 'aa_to_idx': ...}
+        potts_model: {'J': ..., 'L': ..., 'q': ...} (h if present is ignored)
 
     Returns:
         energy: Scalar energy value
     """
     J = potts_model['J']  # [L, L, q, q]
-    h = potts_model['h']  # [L, q]
-    L = potts_model['L']
-    q = potts_model['q']
+    L = int(potts_model['L'])
+    q = int(potts_model['q'])
 
-    # Amino acid to index mapping
-    aa_to_idx = {
-        'A': 0, 'R': 1, 'N': 2, 'D': 3, 'C': 4,
-        'Q': 5, 'E': 6, 'G': 7, 'H': 8, 'I': 9,
-        'L': 10, 'K': 11, 'M': 12, 'F': 13, 'P': 14,
-        'S': 15, 'T': 16, 'W': 17, 'Y': 18, 'V': 19
-    }
+    # Same as ALPHA21[1:] / Mi3: J indices 0..19 = ACDEFGHIKLMNPQRSTVWY
+    aa_to_idx = {c: i for i, c in enumerate("ACDEFGHIKLMNPQRSTVWY")}
 
     energy = 0.0
-
-    # External field term
-    for i in range(L):
-        aa = seq[i] if i < len(seq) else 'A'  # Handle length mismatch
-        if aa in aa_to_idx:
-            idx_i = i * q + aa_to_idx[aa]
-            energy -= h[i, aa_to_idx[aa]]
-
-    # Coupling term
     for i in range(L):
         aa_i = seq[i] if i < len(seq) else 'A'
-        idx_i = i * q + aa_to_idx[aa_i] if aa_i in aa_to_idx else i * q
-        for j in range(i+1, L):
+        if aa_i not in aa_to_idx:
+            continue
+        for j in range(i + 1, L):
             aa_j = seq[j] if j < len(seq) else 'A'
-            idx_j = j * q + aa_to_idx[aa_j] if aa_j in aa_to_idx else j * q
-            if aa_i in aa_to_idx and aa_j in aa_to_idx:
-                energy -= J[i, j, aa_to_idx[aa_i], aa_to_idx[aa_j]]
-
+            if aa_j not in aa_to_idx:
+                continue
+            energy -= J[i, j, aa_to_idx[aa_i], aa_to_idx[aa_j]]
     return energy
 
 
@@ -76,15 +63,15 @@ def potts_guided_sampling_step(
     tokenizer=None
 ):
     """
-    At each DPLM reverse diffusion step, use Potts energy to correct sampling distribution.
+    At each DPLM reverse-diffusion step, use Potts energy to modify the sampling distribution.
 
     Args:
         model: DPLM model
         current_tokens: Current token sequence [batch, seq_len]
-        fixed_mask: Fixed position mask [batch, seq_len], True=fixed
-        potts_model: Potts model (J, h)
-        beta: Guidance strength parameter
-        tokenizer: For mapping tokens to amino acids
+        fixed_mask: Fixed-position mask [batch, seq_len], True = fixed
+        potts_model: Potts model (J, L, q); gauge-free, J only.
+        beta: Guidance strength
+        tokenizer: Maps tokens to amino acids
 
     Returns:
         new_tokens: Updated token sequence
@@ -94,7 +81,7 @@ def potts_guided_sampling_step(
 
     batch_size, seq_len, vocab_size = logits.shape
 
-    # Align with DPLM forward_decoder: mask special tokens to avoid sampling pad/bos/eos/mask, etc., decoding to invalid chars like <null_1>
+    # Match DPLM forward_decoder: mask special tokens to avoid sampling pad/bos/eos/mask -> invalid decoded chars
     logits = logits.clone()
     logits[..., model.mask_id] = -1e9
     logits[..., model.x_id] = -1e9
@@ -103,7 +90,7 @@ def potts_guided_sampling_step(
     logits[..., model.eos_id] = -1e9
 
     dplm_probs = torch.softmax(logits, dim=-1)
-    # TODO: Potts energy correction of dplm_probs (not implemented yet, using DPLM distribution only)
+    # TODO: Potts energy correction of dplm_probs (not implemented; uses DPLM distribution only)
 
     new_tokens = torch.multinomial(dplm_probs.view(-1, vocab_size), 1)
     new_tokens = new_tokens.view(batch_size, seq_len)
@@ -115,17 +102,17 @@ def potts_guided_sampling_step(
 
 
 # DPLM generates 99 aa. 99 aa HXB2 template fixes motif: PQITL(0-4), DTG(24-26), GGIG(47-50), CTLNF(94-98); 93aa=99aa[5:98]
-DPLM_PR_START = 5   # Start index of 93 aa PR in 99 aa
+DPLM_PR_START = 5   # 93aa PR start index in 99aa
 DPLM_LEN = 99       # DPLM sequence length
 
-# Potts uses ALPHA21: 0=gap, 1-20=ACDEFGHIKLMNPQRSTVWY (common with Mi3)
+# Potts uses ALPHA21: 0=gap, 1-20=ACDEFGHIKLMNPQRSTVWY (same as Mi3)
 ALPHA21 = "-ACDEFGHIKLMNPQRSTVWY"
 
 
 def _get_aa_to_token_id(tokenizer, device):
     """Build mapping from 20 amino acid chars to DPLM token ids."""
     aa_to_token_id = {}
-    for c in ALPHA21[1:]:  # Skip gap
+    for c in ALPHA21[1:]:  # skip gap
         enc = tokenizer.encode(c, add_special_tokens=False)
         if enc:
             aa_to_token_id[c] = enc[0]
@@ -133,7 +120,7 @@ def _get_aa_to_token_id(tokenizer, device):
 
 
 def _build_token_to_potts(tokenizer, device, max_id=256):
-    """Build mapping token_id -> potts_idx (0..20), non-amino-acid as -1."""
+    """Build token_id -> potts_idx (0..20); non-amino-acid -> -1."""
     arr = torch.full((max_id,), -1, dtype=torch.long, device=device)
     for i, c in enumerate(ALPHA21):
         if c == "-":
@@ -148,7 +135,6 @@ def compute_potts_Ei_bias(
     output_tokens,
     output_masks,
     J_gpu,
-    h_gpu,
     token_to_potts,
     aa_to_token_id,
     vocab_size,
@@ -158,8 +144,8 @@ def compute_potts_Ei_bias(
     device,
 ):
     """
-    Vectorized + GPU: F_i(a)=h_i(a)+sum_{j decoded,j!=i} J_ij(a,x_j), bias = -beta*F.
-    J/h reside on GPU; single call uses gather + sum with no inner Python loop.
+    Vectorized + GPU. Mi3-GPU gauge-free: h absorbed into J; guidance uses coupling only.
+    G_i(a) = sum_{j in C} J_ij(a,x_j), bias = beta*G. C = set of currently revealed positions.
     """
     B = output_tokens.shape[0]
     L99 = output_tokens.shape[1]
@@ -170,14 +156,13 @@ def compute_potts_Ei_bias(
     valid = (decoded >= 0).float()
     idx = decoded.clamp(0)
 
-    # J_gathered[i,j,a,b] = J[i,j,a, decoded[b,j]]，index (L,L,q,B)
+    # J_gathered[i,j,a,b] = J[i,j,a, decoded[b,j]]
     index = idx.t().unsqueeze(0).unsqueeze(2).expand(L, L, q, -1).long()
     J_gathered = torch.gather(J_gpu, 3, index)
     valid_j = valid.t().unsqueeze(0).unsqueeze(2).expand(L, L, q, -1)
     off_diag = (1 - torch.eye(L, device=device, dtype=J_gathered.dtype)).unsqueeze(2).unsqueeze(3).expand(L, L, q, B)
-    F = h_gpu.unsqueeze(0).expand(B, -1, -1) + (
-        (J_gathered * valid_j * off_diag).sum(dim=1).permute(2, 0, 1)
-    )
+    # Gauge-free: coupling only G_i(a) = sum_{j in C, j!=i} J_ij(a, x_j)
+    F = (J_gathered * valid_j * off_diag).sum(dim=1).permute(2, 0, 1)
 
     bias = torch.zeros((B, L99, vocab_size), device=device, dtype=torch.float32)
     om = output_masks[:, 5:5 + L]
@@ -185,26 +170,24 @@ def compute_potts_Ei_bias(
         if token_id >= vocab_size:
             continue
         potts_a = ALPHA21.index(aa_char)
-        val = -beta * F[:, :, potts_a]
+        val = beta * F[:, :, potts_a]  # Paper eq.(4): logits_guided = logits + λ·G, λ=beta
         bias[:, 5:5 + L, token_id] = torch.where(om, val, bias[:, 5:5 + L, token_id])
 
     return bias.to(output_tokens.dtype)
 
 
 def make_potts_logit_modifier(potts_model, beta, tokenizer, model, device, bias_clip=None):
-    """Return logit_modifier callable in forward_decoder. J/h loaded to GPU once, computation vectorized.
+    """Return a logit_modifier callable in forward_decoder. Mi3-GPU gauge-free, J only.
 
-    bias_clip: If positive, clamp Potts adjustment to logits to [-bias_clip, bias_clip],
-               to avoid over-pulling toward outliers and keep generation closer to real bulk distribution.
+    bias_clip: If positive, clamp Potts logit adjustment to [-bias_clip, bias_clip].
     """
     L = int(potts_model["L"])
     q = int(potts_model["q"])
     J_gpu = torch.from_numpy(potts_model["J"]).to(device=device, dtype=torch.float32)
-    h_gpu = torch.from_numpy(potts_model["h"]).to(device=device, dtype=torch.float32)
     token_to_potts = _build_token_to_potts(tokenizer, device)
     aa_to_token_id = _get_aa_to_token_id(tokenizer, device)
 
-    _chunk = 128  # Chunk large batches to avoid (L,L,q,B) memory/compute explosion
+    _chunk = 128
 
     def logit_modifier(logits, output_tokens, output_masks):
         B = logits.shape[0]
@@ -212,7 +195,7 @@ def make_potts_logit_modifier(potts_model, beta, tokenizer, model, device, bias_
         if B <= _chunk:
             potts_bias = compute_potts_Ei_bias(
                 output_tokens, output_masks,
-                J_gpu, h_gpu, token_to_potts, aa_to_token_id,
+                J_gpu, token_to_potts, aa_to_token_id,
                 vocab_size=V, L=L, q=q, beta=beta, device=device,
             )
         else:
@@ -221,7 +204,7 @@ def make_potts_logit_modifier(potts_model, beta, tokenizer, model, device, bias_
                 end = min(start + _chunk, B)
                 part_bias = compute_potts_Ei_bias(
                     output_tokens[start:end], output_masks[start:end],
-                    J_gpu, h_gpu, token_to_potts, aa_to_token_id,
+                    J_gpu, token_to_potts, aa_to_token_id,
                     vocab_size=V, L=L, q=q, beta=beta, device=device,
                 )
                 parts.append(part_bias)
@@ -238,7 +221,7 @@ def build_hxb2_99_from_93(hxb2_93):
     Build 99 aa template from 93 aa HXB2 PR: PQITL(0-4) + 93aa(5-97) + F(98); 93aa=99aa[5:98].
     """
     if len(hxb2_93) != 93:
-        raise ValueError(f"HXB2 93aa length should be 93, got {len(hxb2_93)}")
+        raise ValueError(f"HXB2 93aa length must be 93, got {len(hxb2_93)}")
     # 99 aa = 5 (PQITL) + 93 aa + 1 (F)
     hxb2_99 = "PQITL" + hxb2_93 + "F"
     assert len(hxb2_99) == 99
@@ -247,12 +230,12 @@ def build_hxb2_99_from_93(hxb2_93):
 
 def _apply_motif_99aa(seq_99_list, hxb2_99_list):
     """
-    Fix motif on 99 aa sequence using 99 aa HXB2 template.
-    hxb2_99_list must be length 99.
+    Apply 99 aa HXB2 template to fix motif on 99 aa sequence.
+    hxb2_99_list must be a list of length 99.
     Fixed: PQITL(0-4), DTG(24-26), GGIG(47-50), CTLNF(94-98)
     """
     if len(hxb2_99_list) != 99:
-        raise ValueError(f"HXB2 99aa template length should be 99, got {len(hxb2_99_list)}")
+        raise ValueError(f"HXB2 99aa template length must be 99, got {len(hxb2_99_list)}")
     seq_99_list[0:5] = hxb2_99_list[0:5]      # PQITL
     seq_99_list[24:27] = hxb2_99_list[24:27]  # DTG
     seq_99_list[47:51] = hxb2_99_list[47:51]  # GGIG
@@ -260,9 +243,9 @@ def _apply_motif_99aa(seq_99_list, hxb2_99_list):
 
 
 def generate_unconditioned(model, tokenizer, hxb2_template_99, num_samples=500, max_iter=500, device='cuda'):
-    """Unconditioned generation: fix motif (PQITL, DTG, GGIG, CTLNF) using 99 aa HXB2 template."""
+    """Unconditioned generation: fix motif (PQITL, DTG, GGIG, CTLNF) with 99 aa HXB2 template."""
     print("\n" + "="*60)
-    print("Generating unconditioned sequences...")
+    print("Generating Unconditioned sequences...")
     print("="*60)
 
     seq_list = ['<mask>'] * DPLM_LEN
@@ -291,10 +274,10 @@ def generate_unconditioned(model, tokenizer, hxb2_template_99, num_samples=500, 
 
     input_tokens = batch["input_ids"]
 
-    # Create partial_mask: non-mask positions True (fixed), consistent with generate_dplm.py
+    # partial_mask: non-mask positions True (fixed), same as generate_dplm.py
     partial_mask = input_tokens.ne(model.mask_id)
 
-    # Use standard DPLM generation
+    # Standard DPLM generation
     print("Starting generation...")
     with torch.amp.autocast('cuda'):
         outputs = model.generate(
@@ -307,7 +290,7 @@ def generate_unconditioned(model, tokenizer, hxb2_template_99, num_samples=500, 
 
     output_tokens = outputs
 
-    print("Generation complete!")
+    print("Generation done!")
 
     output_results = [
         "".join(seq.split(" "))
@@ -322,10 +305,10 @@ def generate_unconditioned(model, tokenizer, hxb2_template_99, num_samples=500, 
 def generate_potts_guided(model, tokenizer, hxb2_template_99, potts_model,
                        beta=1.0, num_samples=500, max_iter=500,
                        device='cuda', output_name="potts", bias_clip=None):
-    """Potts-guided generation. Fix motif using 99 aa HXB2 template.
+    """Potts-guided generation. Fix motif with 99 aa HXB2 template.
 
-    beta: Guidance strength; lower values closer to DPLM/real bulk (suggest 0.2–0.5).
-    bias_clip: Clamp Potts bias to logits to avoid over-pulling toward outliers (e.g. 2.0).
+    beta: Guidance strength; smaller values stay closer to DPLM/real in-distribution (e.g. 0.2–0.5).
+    bias_clip: Upper bound for logit bias clipping to avoid pulling toward outliers (e.g. 2.0).
     """
     print("\n" + "="*60)
     print(f"Generating {output_name.upper()}-guided sequences (beta={beta}" + (f", bias_clip={bias_clip})" if bias_clip else ")") + "...")
@@ -377,12 +360,12 @@ def generate_potts_guided(model, tokenizer, hxb2_template_99, potts_model,
         )
     ]
 
-    print("Generation complete!")
+    print("Generation done!")
     return output_results
 
 
 def save_fasta(sequences, saveto_name, prefix="SEQUENCE"):
-    """Save sequences to FASTA file"""
+    """Save sequences to FASTA file."""
     os.makedirs(os.path.dirname(saveto_name), exist_ok=True)
     fp_save = open(saveto_name, "w")
     for idx, seq in enumerate(sequences):
@@ -395,7 +378,7 @@ def main(num_samples=500, max_iter=500, beta_naive=0.3, beta_exper=0.5, bias_cli
     # Parameters
     model_name = "airkingbd/dplm_150m"
 
-    # Path config (runnable from repo root or experiments/generation)
+    # Paths (run from repo root or experiments/generation)
     repo_root = Path(__file__).resolve().parents[2]
     potts_models_path = repo_root / "hiv_data/processed/potts_models.npz"
     hxb2_path = repo_root / "hiv_data/reference/hxb2_pr.fasta"
@@ -407,7 +390,7 @@ def main(num_samples=500, max_iter=500, beta_naive=0.3, beta_exper=0.5, bias_cli
         )
     if not potts_models_path.exists():
         raise FileNotFoundError(
-            f"Potts models not found: {potts_models_path}\nRun Phase 1 first: python experiments/data_processing/prepare_hiv_data.py"
+            f"Potts model not found: {potts_models_path}\nRun Phase 1 first: python experiments/data_processing/prepare_hiv_data.py"
         )
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -416,7 +399,7 @@ def main(num_samples=500, max_iter=500, beta_naive=0.3, beta_exper=0.5, bias_cli
     def out(name):
         return output_dir / f"{name}{sfx}.fasta"
 
-    # Load 93 aa HXB2, build 99 aa template (PQITL + 93aa + F)
+    # Load 93 aa HXB2 and build 99 aa template (PQITL + 93aa + F)
     print("Loading HXB2 reference...")
     with open(hxb2_path, 'r') as f:
         for line in f:
@@ -425,25 +408,23 @@ def main(num_samples=500, max_iter=500, beta_naive=0.3, beta_exper=0.5, bias_cli
                 break
 
     if len(hxb2_93) != 93:
-        raise ValueError(f"HXB2 reference should be 93 aa, got {len(hxb2_93)}")
+        raise ValueError(f"HXB2 reference must be 93 aa, got {len(hxb2_93)}")
     hxb2_template_99 = build_hxb2_99_from_93(hxb2_93)
     print(f"HXB2 93 aa -> 99 aa template")
     print(f"  99aa template: {hxb2_template_99[:20]}...{hxb2_template_99[-10:]}")
 
-    # Load Potts models
+    # Load Potts models. Mi3-GPU gauge-free: h absorbed into J; energy and guidance use J only, so do not load h.
     print("\nLoading Potts models...")
     potts_data = np.load(potts_models_path)
 
     potts_naive = {
         'J': potts_data['potts_naive_J'],
-        'h': potts_data['potts_naive_h'],
         'L': int(potts_data['potts_L']),
         'q': int(potts_data['potts_q'])
     }
 
     potts_exper = {
         'J': potts_data['potts_exper_J'],
-        'h': potts_data['potts_exper_h'],
         'L': int(potts_data['potts_L']),
         'q': int(potts_data['potts_q'])
     }
@@ -475,7 +456,7 @@ def main(num_samples=500, max_iter=500, beta_naive=0.3, beta_exper=0.5, bias_cli
 
     if uncond_only:
         print("\n" + "="*60)
-        print("Phase 2 complete (Uncond only)!")
+        print("Phase 2 done (Uncond only)!")
         print("="*60)
         print(f"\nUncond: {len(uncond_sequences)} sequences -> {out('pr_uncond')}")
         return
@@ -500,28 +481,28 @@ def main(num_samples=500, max_iter=500, beta_naive=0.3, beta_exper=0.5, bias_cli
     save_fasta(exper_potts_sequences, out("pr_exper_potts"), prefix="EXPER_POTTS")
 
     print("\n" + "="*60)
-    print("Phase 2 complete!")
+    print("Phase 2 done!")
     print("="*60)
     print("\nGeneration summary:")
     print(f"  Uncond: {len(uncond_sequences)} sequences")
     print(f"  Naive-Potts: {len(naive_potts_sequences)} sequences")
     print(f"  Exper-Potts: {len(exper_potts_sequences)} sequences")
     print(f"  Total: {len(uncond_sequences) + len(naive_potts_sequences) + len(exper_potts_sequences)} sequences")
-    print(f"\nOutput: {output_dir}")
+    print(f"\nOutput directory: {output_dir}")
 
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="DPLM Potts-guided generation; default weaker beta and bias_clip keep generation close to real bulk.")
-    parser.add_argument("--num_samples", type=int, default=500, help="Sequences per group")
+    parser = argparse.ArgumentParser(description="DPLM Potts-guided generation; default weaker beta and bias_clip for in-distribution-like output.")
+    parser.add_argument("--num_samples", type=int, default=500, help="Number of sequences per group")
     parser.add_argument("--max_iter", type=int, default=500, help="Diffusion decode iterations")
-    parser.add_argument("--beta_naive", type=float, default=1.0, help="Naive-Potts guidance strength; lower closer to naive_real bulk (default 0.3)")
-    parser.add_argument("--beta_exper", type=float, default=1.0, help="Exper-Potts guidance strength; lower closer to exper_real bulk (default 0.5)")
-    parser.add_argument("--bias_clip", type=float, default=0.0, help="Clamp Potts bias to logits (default 2.0; 0 = no clamp)")
+    parser.add_argument("--beta_naive", type=float, default=1.0, help="Naive-Potts guidance strength (default 0.3)")
+    parser.add_argument("--beta_exper", type=float, default=1.0, help="Exper-Potts guidance strength (default 0.5)")
+    parser.add_argument("--bias_clip", type=float, default=0.0, help="Potts logit bias clip (default 2.0; 0 = no clip)")
     parser.add_argument("--quick", action="store_true", help="Quick test: 2 seq/group, 10 steps")
     parser.add_argument("--uncond_only", action="store_true", help="Generate Uncond only")
-    parser.add_argument("--output_suffix", type=str, default=None, help="Output file suffix, e.g. beta2 -> pr_naive_potts_beta2.fasta")
-    parser.add_argument("--potts_only", action="store_true", help="Generate Naive-Potts and Exper-Potts only, skip Uncond")
+    parser.add_argument("--output_suffix", type=str, default=None, help="Output filename suffix to avoid overwrite")
+    parser.add_argument("--potts_only", action="store_true", help="Generate only Naive-Potts and Exper-Potts, skip Uncond")
     args = parser.parse_args()
     if args.quick:
         args.num_samples = 2

@@ -1,5 +1,5 @@
 naive_real_mean: 11792.718
 exper_real_mean: 8282.878
-uncond_gen_mean: 12254.112
-naive_potts_gen_mean: 6861.896
-exper_potts_gen_mean: 8242.356
+uncond_gen_mean: 12319.510
+naive_potts_gen_mean: 12381.750
+exper_potts_gen_mean: 12510.316

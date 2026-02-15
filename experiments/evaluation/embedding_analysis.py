@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Phase 3.2: Embedding extraction and visualization.
-Extract embeddings via DPLM forward(..., return_last_hidden_state=True),
-reduce with PCA/t-SNE and plot. 93aa sequences consistent with Phase 2.
+Phase 3.2: 嵌入空间提取与可视化
+使用 DPLM forward(..., return_last_hidden_state=True) 提取 embedding，
+PCA/t-SNE 降维并绘图。93aa 序列与 Phase2 一致。
 """
 
 import os
@@ -56,16 +56,16 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
-    print("Phase 3.2: Embedding extraction and visualization")
+    print("Phase 3.2: 嵌入空间提取与可视化")
     print("=" * 60)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print("\nLoading DPLM...")
+    print("\n加载 DPLM...")
     model = DiffusionProteinLanguageModel.from_pretrained("airkingbd/dplm_150m")
     model = model.eval().to(device)
     tokenizer = model.tokenizer
 
-    # Max 200 per group to control time and memory
+    # 每组最多取 200 条以控制时间和内存
     max_per_group = 200
     batch_size = 32
 
@@ -80,7 +80,7 @@ def main():
             input_ids = batch["input_ids"].to(device)
             with torch.no_grad():
                 logits, hidden = model(input_ids, return_last_hidden_state=True)
-            # hidden: (B, L, D), mean over L -> (B, D)
+            # hidden: (B, L, D)，取 mean over L 得到 (B, D)
             mask = (input_ids != model.pad_id) & (input_ids != model.bos_id) & (input_ids != model.eos_id)
             mask = mask.float()
             if mask.sum(1).min() == 0:
@@ -118,7 +118,7 @@ def main():
     embeddings_list.append(e)
     labels_list.extend(["exper_potts_gen"] * n)
 
-    # Potts model pure MCMC samples (Mi3-GPU gen)
+    # Potts 模型纯 MCMC 采样序列（Mi3-GPU gen）
     for label, fname in [("naive", "pr_potts_mcmc_naive.fasta"), ("exper", "pr_potts_mcmc_exper.fasta")]:
         fpath = generated_dir / fname
         if fpath.exists():
@@ -158,7 +158,7 @@ def main():
         plt.savefig(output_dir / "tsne_plot.png", dpi=120)
         plt.close()
 
-        # New: t-SNE with exper and uncond only
+        # 新增：只有 exper 和 uncond 的 t-SNE
         for lab in ["exper_real", "uncond_gen"]:
             idx = labels == lab
             if idx.any():
@@ -170,7 +170,7 @@ def main():
         plt.savefig(output_dir / "tsne_exper_uncond.png", dpi=120)
         plt.close()
 
-        # New: t-SNE with naive and uncond only
+        # 新增：只有 naive 和 uncond 的 t-SNE
         for lab in ["naive_real", "uncond_gen"]:
             idx = labels == lab
             if idx.any():
@@ -182,7 +182,7 @@ def main():
         plt.savefig(output_dir / "tsne_naive_uncond.png", dpi=120)
         plt.close()
 
-        # New: exper_real + uncond + potts_mcmc_exper + exper_potts_gen
+        # 新增：exper_real + uncond + potts_mcmc_exper + exper_potts_gen
         for lab in ["exper_real", "uncond_gen", "potts_mcmc_exper", "exper_potts_gen"]:
             idx = labels == lab
             if idx.any():
@@ -194,7 +194,7 @@ def main():
         plt.savefig(output_dir / "tsne_exper_full.png", dpi=120)
         plt.close()
 
-        # New: naive_real + uncond + potts_mcmc_naive + naive_potts_gen
+        # 新增：naive_real + uncond + potts_mcmc_naive + naive_potts_gen
         for lab in ["naive_real", "uncond_gen", "potts_mcmc_naive", "naive_potts_gen"]:
             idx = labels == lab
             if idx.any():
@@ -218,14 +218,14 @@ def main():
         plt.tight_layout()
         plt.savefig(output_dir / "pca_plot.png", dpi=120)
         plt.close()
-        print(f"\nSaved: tsne_plot, tsne_exper_uncond, tsne_naive_uncond, "
+        print(f"\n已保存: tsne_plot, tsne_exper_uncond, tsne_naive_uncond, "
               f"tsne_exper_full, tsne_naive_full, pca_plot")
     except Exception as err:
-        print(f"\nVisualization skipped: {err}")
+        print(f"\n可视化跳过: {err}")
 
-    print(f"\nSaved: {output_dir / 'embeddings.npz'}")
+    print(f"\n保存: {output_dir / 'embeddings.npz'}")
     print("=" * 60)
-    print("Phase 3.2 complete!")
+    print("Phase 3.2 完成！")
     print("=" * 60)
 
 

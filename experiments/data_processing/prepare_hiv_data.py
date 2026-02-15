@@ -10,13 +10,13 @@ from pathlib import Path
 
 
 def load_fasta_sequences(filepath):
-    """Load FASTA-format sequence file (plain text, one seq per line)"""
+    """Load FASTA-format sequence file (simple text, one sequence per line)."""
     sequences = []
     with open(filepath, 'r') as f:
         for line in f:
             line = line.strip()
             if line and not line.startswith('>'):
-                # Remove gap chars, keep standard amino acids
+                # Remove gap characters, keep standard amino acids
                 seq = line.replace('-', '')
                 if len(seq) == 93:
                     sequences.append(seq)
@@ -30,7 +30,7 @@ def load_potts_model(j_path):
     J matrix shape (4278, 441):
     - L = 93 (sequence length)
     - q = 21 (21 states: 20 amino acids + gap)
-    - 4278 = (93 × 92) / 2, upper-triangular site pairs
+    - 4278 = (93 × 92) / 2, upper-triangle site pairs
     - 441 = 21 × 21
     """
     J_full = np.load(j_path)
@@ -53,12 +53,11 @@ def load_potts_model(j_path):
             J_coupling[j, i, :, :] = J_full[k].reshape(q, q)  # symmetric
             k += 1
 
-    # External field h may need extraction elsewhere or set to zero
-    # Set to zero for now, adjust with real data later
+    # Mi3-GPU gauge-free: h absorbed into J; energy and guidance use J only. h zeros are npz placeholder only.
     h = np.zeros((L, q))
 
     print(f"Rebuilt coupling matrix: {J_coupling.shape}")
-    print(f"External field matrix: {h.shape}")
+    print(f"Field matrix (placeholder): {h.shape}")
 
     return {
         'J': J_coupling,
@@ -69,7 +68,7 @@ def load_potts_model(j_path):
 
 
 def compute_pssm(sequences, num_states=21):
-    """Compute position-specific scoring matrix (PSSM)"""
+    """Compute position-specific scoring matrix (PSSM)."""
     L = len(sequences[0])
     pssm = np.zeros((L, num_states))
 
@@ -94,7 +93,7 @@ def compute_pssm(sequences, num_states=21):
 
 
 def compute_mutation_frequency(sequences):
-    """Compute mutation frequency per site"""
+    """Compute mutation frequency per site."""
     L = len(sequences[0])
     freq = {}
 
@@ -109,14 +108,14 @@ def compute_mutation_frequency(sequences):
 
 
 def compute_shannon_entropy(pssm):
-    """Compute Shannon entropy per site"""
-    eps = 1e-10  # Avoid log(0)
+    """Compute Shannon entropy per site."""
+    eps = 1e-10  # avoid log(0)
     entropy = -np.sum(pssm * np.log2(pssm + eps), axis=1)
     return entropy
 
 
 def extract_hxb2_reference(sequences):
-    """Extract sequence closest to consensus as HXB2 reference"""
+    """Extract sequence closest to consensus as HXB2 reference."""
     # Compute consensus
     consensus_seq = []
     L = len(sequences[0])
@@ -127,7 +126,7 @@ def extract_hxb2_reference(sequences):
             aa = seq[pos]
             aa_counts[aa] = aa_counts.get(aa, 0) + 1
 
-        # Pick most frequent amino acid
+        # Choose most frequent amino acid
         most_common_aa = max(aa_counts.items(), key=lambda x: x[1])[0]
         consensus_seq.append(most_common_aa)
 
@@ -147,13 +146,13 @@ def extract_hxb2_reference(sequences):
 
 
 def main():
-    # Path config
+    # Paths
     data_dir = Path("/mnt/hbnas/home/pfp/hiv/discrete_flow_models/data/hiv_msa")
     potts_dir = Path("/mnt/hbnas/home/pfp/hiv/Mi3-GPU/examples")
     output_dir = Path("/mnt/hbnas/home/pfp/hiv2026/dplm/hiv_data/processed")
     reference_dir = Path("/mnt/hbnas/home/pfp/hiv2026/dplm/hiv_data/reference")
 
-    # Create output dirs
+    # Create output directories
     output_dir.mkdir(parents=True, exist_ok=True)
     reference_dir.mkdir(parents=True, exist_ok=True)
 
@@ -161,7 +160,7 @@ def main():
     print("Phase 1: HIV-1 PR data preparation")
     print("=" * 60)
 
-    # 1. Load val set (val only for evaluation)
+    # 1. Load val set (val only used for evaluation)
     print("\n[1/5] Loading val set...")
 
     naive_val_seqs = load_fasta_sequences(data_dir / "pr_naive/val_sequences.txt")
@@ -170,11 +169,11 @@ def main():
     print(f"  Naive val: {len(naive_val_seqs)} sequences")
     print(f"  Exper val: {len(exper_val_seqs)} sequences")
 
-    # Verify sequence length
+    # Check sequence length
     if naive_val_seqs:
-        print(f"  Naive seq length: {len(naive_val_seqs[0])} aa")
+        print(f"  Naive sequence length: {len(naive_val_seqs[0])} aa")
     if exper_val_seqs:
-        print(f"  Exper seq length: {len(exper_val_seqs[0])} aa")
+        print(f"  Exper sequence length: {len(exper_val_seqs[0])} aa")
 
     # 2. Load Potts models
     print("\n[2/5] Loading Potts models...")
@@ -188,35 +187,35 @@ def main():
     # 3. Compute statistics (from val set)
     print("\n[3/5] Computing statistics...")
 
-    # Naive stats
-    print("  Naive stats...")
+    # Naive statistics
+    print("  Naive statistics...")
     naive_pssm = compute_pssm(naive_val_seqs)
     naive_mutation_freq = compute_mutation_frequency(naive_val_seqs)
     naive_entropy = compute_shannon_entropy(naive_pssm)
 
     print(f"    Mean Shannon entropy: {naive_entropy.mean():.3f}")
-    print(f"    Max entropy site: {np.argmax(naive_entropy)} (val: {naive_entropy.max():.3f})")
-    print(f"    Min entropy site: {np.argmin(naive_entropy)} (val: {naive_entropy.min():.3f})")
+    print(f"    Max entropy site: {np.argmax(naive_entropy)} (value: {naive_entropy.max():.3f})")
+    print(f"    Min entropy site: {np.argmin(naive_entropy)} (value: {naive_entropy.min():.3f})")
 
-    # Exper stats
-    print("  Exper stats...")
+    # Exper statistics
+    print("  Exper statistics...")
     exper_pssm = compute_pssm(exper_val_seqs)
     exper_mutation_freq = compute_mutation_frequency(exper_val_seqs)
     exper_entropy = compute_shannon_entropy(exper_pssm)
 
-    print(f"    Mean Shannon entropy: {exper_entropy.mean():.3f}")
-    print(f"    Max entropy site: {np.argmax(exper_entropy)} (val: {exper_entropy.max():.3f})")
-    print(f"    Min entropy site: {np.argmin(exper_entropy)} (val: {exper_entropy.min():.3f})")
+    print(f"    平均Shannon熵: {exper_entropy.mean():.3f}")
+    print(f"    最高熵位点: {np.argmax(exper_entropy)} (值: {exper_entropy.max():.3f})")
+    print(f"    最低熵位点: {np.argmin(exper_entropy)} (值: {exper_entropy.min():.3f})")
 
-    # 4. Extract HXB2 reference
-    print("\n[4/5] Extracting HXB2 reference...")
+    # 4. 提取HXB2参考序列
+    print("\n[4/5] 提取HXB2参考序列...")
 
-    # Use naive val set for HXB2 (naive more conservative)
+    # 使用naive val set提取HXB2（naive更保守）
     hxb2_naive, naive_consensus = extract_hxb2_reference(naive_val_seqs)
     hxb2_exper, exper_consensus = extract_hxb2_reference(exper_val_seqs)
 
     print(f"  Naive consensus: {naive_consensus}")
-    print(f"  Naive HXB2 proxy: {hxb2_naive}")
+    print(f"  Naive HXB2代理: {hxb2_naive}")
     print(f"  Exper consensus: {exper_consensus}")
     print(f"  Exper HXB2 proxy: {hxb2_exper}")
 
@@ -235,7 +234,7 @@ def main():
     save_fasta(naive_val_seqs, output_dir / "pr_naive_val.fasta")
     save_fasta(exper_val_seqs, output_dir / "pr_exper_val.fasta")
 
-    # Save HXB2 reference
+    # 保存HXB2参考
     with open(reference_dir / "hxb2_pr.fasta", 'w') as f:
         f.write(f">HXB2_PR_Reference\n{hxb2_ref}\n")
 
@@ -260,14 +259,14 @@ def main():
         hxb2_ref=np.array(list(hxb2_ref), dtype='U1')
     )
 
-    print(f"\nSaved!")
+    print(f"\nSave complete!")
     print(f"  Val sequences: {output_dir / 'pr_naive_val.fasta'}, {output_dir / 'pr_exper_val.fasta'}")
     print(f"  HXB2 reference: {reference_dir / 'hxb2_pr.fasta'}")
     print(f"  Potts models: {output_dir / 'potts_models.npz'}")
     print(f"  Statistics: {output_dir / 'pr_statistics.npz'}")
 
     print("\n" + "=" * 60)
-    print("Phase 1 complete!")
+    print("Phase 1 done!")
     print("=" * 60)
 
 

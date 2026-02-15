@@ -43,4 +43,4 @@ We quantify and visualize Foundation Model generation quality along the followin
 - **Potts-guided**: Significantly improves diversity and enrichment at some resistance sites (e.g., I84V); overly strong guidance can cause mode collapse or bias toward outlier modes
 - **Embedding Space**: Potts guidance shifts generated samples away from the real bulk cluster in representation space, suggesting guidance strength should be tuned carefully
 
-For more details, see [experiments/EXPERIMENTS_SUMMARY.md](experiments/EXPERIMENTS_SUMMARY.md) and [exp_results/RESULTS_SUMMARY.md](exp_results/RESULTS_SUMMARY.md).
+For more details, see [experiments/EXPERIMENTS_SUMMARY.md](experiments/EXPERIMENTS_SUMMARY.md), [exp_results/RESULTS_SUMMARY.md](exp_results/RESULTS_SUMMARY.md), and [exp_results/POTTS_GUIDANCE_BENEFITS.md](exp_results/POTTS_GUIDANCE_BENEFITS.md) (benefits of Potts guidance).

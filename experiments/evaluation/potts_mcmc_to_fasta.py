@@ -6,7 +6,7 @@ Convert Mi3-GPU Potts model MCMC sample sequences to FASTA for DPLM embedding an
 Usage:
   python experiments/evaluation/potts_mcmc_to_fasta.py
 
-If Mi3 MCMC sequences not yet generated, run first:
+If Mi3 MCMC sequences are not generated yet, run first:
   bash experiments/evaluation/run_potts_mcmc.sh
 """
 
@@ -15,7 +15,7 @@ from pathlib import Path
 
 
 def load_mi3_seqs(seqs_path, max_seqs=500):
-    """Read sequences from Mi3 seqs file (one per line, 93 aa)"""
+    """Load sequences from Mi3 seqs file (one sequence per line, 93 aa)."""
     seqs = []
     with open(seqs_path) as f:
         for i, line in enumerate(f):
